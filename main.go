@@ -1,15 +1,15 @@
 package main
 
 import (
-	"os"
-	"log"
-	"time"
-	"strings"
-	"os/exec"
-	"net/http"
-	"io/ioutil"
-	"github.com/dghubble/oauth1"
-	"github.com/dghubble/go-twitter/twitter"
+ "os"
+ "log"
+ "time"
+ "strings"
+ "os/exec"
+ "net/http"
+ "io/ioutil"
+ "github.com/dghubble/oauth1"
+ "github.com/dghubble/go-twitter/twitter"
 )
 
 type Credentials struct {
@@ -19,65 +19,65 @@ type Credentials struct {
     AccessTokenSecret string
 }
 
-const OneHour = 3600
+const TenMinute = 600
 
 func main() {
 
-	creds := Credentials{
-		AccessToken:       os.Getenv("ACCESS_TOKEN"),
-		AccessTokenSecret: os.Getenv("ACCESS_TOKEN_SECRET"),
-		ConsumerKey:       os.Getenv("CONSUMER_KEY"),
-		ConsumerSecret:    os.Getenv("CONSUMER_SECRET"),
-	}
+ creds := Credentials{
+  AccessToken:       os.Getenv("ACCESS_TOKEN"),
+  AccessTokenSecret: os.Getenv("ACCESS_TOKEN_SECRET"),
+  ConsumerKey:       os.Getenv("CONSUMER_KEY"),
+  ConsumerSecret:    os.Getenv("CONSUMER_SECRET"),
+ }
 
-	client, err := getClient(&creds)
-	if err != nil {
-		log.Println("Twitter Client Error")
-		log.Println(err)
-	}
+ client, err := getClient(&creds)
+ if err != nil {
+  log.Println("Twitter Client Error")
+  log.Println(err)
+ }
 
-	for {
-		current := time.Now().Unix()
+ for {
+  current := time.Now().Unix()
 
-		if current % OneHour == 0 {
-			verse, source := GetVerse()
-			tweet := verse + source
-			client.Statuses.Update(tweet, nil)
+  if current % TenMinute == 0 {
+   verse, source := GetVerse()
+   tweet := verse + source
+   client.Statuses.Update(tweet, nil)
 
-			time.Sleep(50 * time.Minute)
-		}
-	}
+   time.Sleep(9 * time.Minute)
+  }
+ }
 }
 
 func GetVerse() (string, string){
-	bibleURL := "https://beta.ourmanna.com/api/v1/get/?format=text&order=random"
+ bibleURL := "https://beta.ourmanna.com/api/v1/get/?format=text&order=random"
 
-	bibleRequest, err := http.NewRequest("GET", bibleURL, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+ bibleRequest, err := http.NewRequest("GET", bibleURL, nil)
+ if err != nil {
+  log.Fatal(err)
+ }
 
-	bibleResponse, err := http.DefaultClient.Do(bibleRequest)
-	if err != nil {
-		log.Fatal(err)
-	}
+ bibleResponse, err := http.DefaultClient.Do(bibleRequest)
+ if err != nil {
+  log.Fatal(err)
+ }
 
-	defer bibleResponse.Body.Close()
-	output, _ := ioutil.ReadAll(bibleResponse.Body)
+ defer bibleResponse.Body.Close()
+ output, _ := ioutil.ReadAll(bibleResponse.Body)
 
-	verse := strings.TrimSpace(string(output))
+ verse := strings.TrimSpace(string(output))
 
-	cutOff := strings.Index(verse, " - ")
-	actualVerse := strings.TrimSpace(string(verse[:cutOff]))
-	source := strings.TrimSpace(string(verse[cutOff:]))
+ cutOff := strings.Index(verse, " - ")
+ actualVerse := strings.TrimSpace(string(verse[:cutOff]))
+ source := strings.TrimSpace(string(verse[cutOff:]))
 
-	pythonPassthrough := "import owo; print(owo.owo(\"\"\"" + actualVerse + "\"\"\"))"
+ pythonPassthrough := "import owo; print(owo.owo(\"\"\"" + actualVerse + "\"\"\"))"
 
-	cmd := exec.Command("python",  "-c", pythonPassthrough)
+ cmd := exec.Command("python3",  "-c", pythonPassthrough)
 
-	out, _ := cmd.CombinedOutput()
+ out, _ := cmd.CombinedOutput()
 
-	return string(out), source
+ return string(out), source
 }
 
 
