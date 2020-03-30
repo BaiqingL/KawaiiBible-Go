@@ -5,11 +5,9 @@ import (
  "log"
  "time"
  "strings"
- "os/exec"
- "net/http"
- "io/ioutil"
  "github.com/dghubble/oauth1"
  "github.com/dghubble/go-twitter/twitter"
+ "bufio"
 )
 
 type Credentials struct {
@@ -19,65 +17,96 @@ type Credentials struct {
     AccessTokenSecret string
 }
 
+// Simple linkedlist implementation adapted from https://gist.github.com/bemasher/1777766
+type Stack struct {
+	top *Element
+	size int
+}
+
+type Element struct {
+	book string
+	source string
+	verse string
+	next *Element
+}
+
+
+func (s *Stack) Size() int {
+	return s.size
+}
+
+
+func (s *Stack) Push(book string, source string, verse string) {
+	s.top = &Element{book, source, verse, s.top}
+	s.size++
+}
+
+
+func (s *Stack) Pop() (verse string, source string) {
+	if s.size > 0 {
+		verse, source, s.top = s.top.verse, s.top.book + " " + s.top.source , s.top.next
+		s.size--
+		return
+	}
+	return "",""
+}
+
 const TenMinute = 600
 
 func main() {
+	llverse := loadVerse();
 
- creds := Credentials{
-  AccessToken:       os.Getenv("ACCESS_TOKEN"),
-  AccessTokenSecret: os.Getenv("ACCESS_TOKEN_SECRET"),
-  ConsumerKey:       os.Getenv("CONSUMER_KEY"),
-  ConsumerSecret:    os.Getenv("CONSUMER_SECRET"),
- }
+	creds := Credentials{
+		AccessToken:       os.Getenv("ACCESS_TOKEN"),
+		AccessTokenSecret: os.Getenv("ACCESS_TOKEN_SECRET"),
+		ConsumerKey:       os.Getenv("CONSUMER_KEY"),
+		ConsumerSecret:    os.Getenv("CONSUMER_SECRET"),
+	   }
+	  
+	client, err := getClient(&creds)
+	if err != nil {
+		log.Println("Twitter Client Error")
+		log.Println(err)
+	}
+	
+	for {
+	current := time.Now().Unix()
+	
+	if current % TenMinute == 0 {
+		verse, source := llverse.Pop()
+		tweet := verse + source
+		client.Statuses.Update(tweet, nil)
+	
+		time.Sleep(9 * time.Minute)
+		}
+	}
 
- client, err := getClient(&creds)
- if err != nil {
-  log.Println("Twitter Client Error")
-  log.Println(err)
- }
-
- for {
-  current := time.Now().Unix()
-
-  if current % TenMinute == 0 {
-   verse, source := GetVerse()
-   tweet := verse + source
-   client.Statuses.Update(tweet, nil)
-
-   time.Sleep(9 * time.Minute)
-  }
- }
 }
 
-func GetVerse() (string, string){
- bibleURL := "https://beta.ourmanna.com/api/v1/get/?format=text&order=random"
+func loadVerse() *Stack{
+	// owoBible text adapted and modified with the help of Luis Hoderlein https://github.com/khemritolya
+    file, err := os.Open("owoBible.txt")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer file.Close()
 
- bibleRequest, err := http.NewRequest("GET", bibleURL, nil)
- if err != nil {
-  log.Fatal(err)
- }
 
- bibleResponse, err := http.DefaultClient.Do(bibleRequest)
- if err != nil {
-  log.Fatal(err)
- }
+	llverse := new(Stack)
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+		line := scanner.Text()
+		book := line[:strings.Index(line, "||")]
+		chapter := line[len(book)+2: strings.LastIndex(line,"||")]
+		verse := line[strings.LastIndex(line,"||")+2:]
+		llverse.Push(book, chapter, verse)
+    }
 
- defer bibleResponse.Body.Close()
- output, _ := ioutil.ReadAll(bibleResponse.Body)
-
- verse := strings.TrimSpace(string(output))
-
- cutOff := strings.Index(verse, " - ")
- actualVerse := strings.TrimSpace(string(verse[:cutOff]))
- source := strings.TrimSpace(string(verse[cutOff:]))
-
- pythonPassthrough := "import owo; print(owo.owo(\"\"\"" + actualVerse + "\"\"\"))"
-
- cmd := exec.Command("python3",  "-c", pythonPassthrough)
-
- out, _ := cmd.CombinedOutput()
-
- return string(out), source
+    if err := scanner.Err(); err != nil {
+        log.Fatal(err)
+	}
+	
+	return llverse
 }
 
 
