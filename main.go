@@ -1,15 +1,16 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
-	"net/http"
-	"os/exec"
-	"strings"
-	"log"
 	"os"
+	"fmt"
+	"log"
+	"time"
+	"strings"
+	"os/exec"
+	"net/http"
+	"io/ioutil"
+	"github.com/dghubble/oauth1"
 	"github.com/dghubble/go-twitter/twitter"
-    "github.com/dghubble/oauth1"
 )
 
 type Credentials struct {
@@ -19,8 +20,9 @@ type Credentials struct {
     AccessTokenSecret string
 }
 
-func main() {
+const OneHour = 3600
 
+func main() {
 
 	creds := Credentials{
 		AccessToken:       os.Getenv("ACCESS_TOKEN"),
@@ -31,17 +33,21 @@ func main() {
 
 	client, err := getClient(&creds)
 	if err != nil {
-		log.Println("Error getting Twitter Client")
+		log.Println("Twitter Client Error")
 		log.Println(err)
 	}
 
-	
-	verse, source := GetVerse()
-	tweet := verse + source
+	for {
+		current := time.Now().Unix()
 
-	client.Statuses.Update(tweet, nil)
+		if current % OneHour == 0 {
+			verse, source := GetVerse()
+			tweet := verse + source
+			client.Statuses.Update(tweet, nil)
 
-
+			time.Sleep(50 * time.Minute)
+		}
+	}
 }
 
 func GetVerse() (string, string){
