@@ -3,11 +3,12 @@ package main
 import (
  "os"
  "log"
+ "fmt"
  "time"
+ "bufio"
  "strings"
  "github.com/dghubble/oauth1"
  "github.com/dghubble/go-twitter/twitter"
- "bufio"
 )
 
 type Credentials struct {
@@ -51,10 +52,11 @@ func (s *Stack) Pop() (verse string, source string) {
 	return "",""
 }
 
-const TenMinute = 600
+const ThirtyMinute = 1800
 
 func main() {
-	llverse := loadVerse();
+	llverse := loadVerse()
+	tweetCount := 0
 
 	creds := Credentials{
 		AccessToken:       os.Getenv("ACCESS_TOKEN"),
@@ -72,12 +74,17 @@ func main() {
 	for {
 	current := time.Now().Unix()
 	
-	if current % TenMinute == 0 {
+	if current % ThirtyMinute == 0 {
 		verse, source := llverse.Pop()
 		tweet := verse + source
 		client.Statuses.Update(tweet, nil)
+		tweetCount += 1
+		fmt.Println("Created tweet #", tweetCount)
+		if llverse.Size() == 0 {
+			llverse = loadVerse()
+		}
 	
-		time.Sleep(9 * time.Minute)
+		time.Sleep(29 * time.Minute)
 		}
 	}
 
