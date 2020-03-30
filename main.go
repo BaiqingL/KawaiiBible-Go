@@ -74,7 +74,7 @@ func main() {
 
 		if current%ThirtyMinute == 0 {
 			verse, source := llverse.Pop()
-			tweet := verse + source
+			tweet := verse + " " + source
 			client.Statuses.Update(tweet, nil)
 			tweetCount += 1
 			fmt.Println("Created tweet #", tweetCount)
